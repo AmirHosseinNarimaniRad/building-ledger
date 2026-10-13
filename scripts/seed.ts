@@ -3,6 +3,7 @@
 import { connect, type Db } from "../lib/db";
 import { fromJalali } from "../lib/date";
 import { createEntry, editEntry, type Entry } from "../lib/ledger";
+import { issueCharge } from "../lib/charge";
 
 const MANAGER_PHONE = "+989120000000";
 const fa = new Intl.NumberFormat("fa-IR", { useGrouping: false });
@@ -80,6 +81,21 @@ async function main() {
       title: "اجاره پشت‌بام برای آنتن", category: "درآمد",
     }, daysAgo(13));
 
+    // Last month's charge (Shahrivar), the common Iranian formula: 40% equal, 60% by occupants.
+    const { shares } = await issueCharge(tx, {
+      buildingId: building.id, jy: 1405, jm: 6, totalRial: toman(30_000_000),
+      formula: { mode: "mixed", fixedShareBp: 4000 }, by: manager.id,
+    });
+    // Most units paid in full, two paid part, three have not paid: real arrears to show.
+    for (const [i, s] of shares.entries()) {
+      if (s.shareRial === 0n || i % 7 === 3) continue;
+      const amountRial = i % 5 === 1 ? (s.shareRial / 20n) * 10n : s.shareRial;
+      await createEntry(tx, {
+        ...base, kind: "payment", amountRial, occurredOn: fromJalali(1405, 6, 5 + (i % 20)),
+        title: `پرداخت شارژ شهریور — واحد ${s.label}`, unitId: s.unitId,
+      });
+    }
+
     // Fresh, still a draft for 30 minutes.
     await createEntry(tx, {
       ...base, kind: "expense", amountRial: toman(1_200_000), occurredOn: fromJalali(1405, 7, 20),
@@ -87,7 +103,7 @@ async function main() {
     });
   });
 
-  console.log(`seeded: manager ${MANAGER_PHONE}, 20 units, 5 ledger rows (one edited)`);
+  console.log(`seeded: manager ${MANAGER_PHONE}, 20 units, Shahrivar charge with payments, 5 expense/income rows`);
   await sql.end();
 }
 
