@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/* Color tokens from the spec's UI section. Light is the default. */
+:root {
+  --primary: #0f5c8c;
+  --good: #0e7a52;
+  --warn: #8f5e00;
+  --danger: #b3261e;
+  --neutral: #edeff3;
+  --ink: #121826;
+  --background: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary: #64b2dc;
+    --good: #5fc998;
+    --warn: #dba443;
+    --danger: #f09086;
+    --neutral: #232a34;
+    --ink: #e8ebf1;
+    --background: #0b0f16;
+  }
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-neutral: var(--neutral);
+  --color-ink: var(--ink);
+  --color-background: var(--background);
+  --font-sans: var(--font-vazirmatn), Tahoma, sans-serif;
+
+  /* Type scale from the spec (px). Base text is 17, not 16. */
+  --text-amount: 34px;
+  --text-title: 19px;
+  --text-base: 17px;
+  --text-label: 13.5px;
+  --text-small: 12.5px;
+}
+
+body {
+  background: var(--background);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.8;
+}
+
+/* Any number shown in a column. */
+.num {
+  font-variant-numeric: tabular-nums;
+}
