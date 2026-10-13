@@ -13,6 +13,7 @@ export interface NewEntry {
   periodId?: string | null;
   docState?: DocState | null;
   undocumentedNote?: string | null;
+  note?: string | null;
   createdBy: string;
 }
 
@@ -25,6 +26,7 @@ export interface EntryChanges {
   unitId?: string | null;
   docState?: DocState;
   undocumentedNote?: string | null;
+  note?: string | null;
 }
 
 export interface FileInfo {
@@ -106,7 +108,10 @@ export async function editEntry(
 ): Promise<{ entry: Entry; revised: boolean }> {
   return withTx(sql, async (tx) => {
     const cur = await loadForChange(tx, args.id);
-    const changes = defined(args.changes);
+    // Only fields that actually differ count; an untouched "save" must not create a revision.
+    const changes = Object.fromEntries(
+      Object.entries(defined(args.changes)).filter(([k, v]) => cur[k as keyof Entry] !== v),
+    ) as EntryChanges;
     if (Object.keys(changes).length === 0) return { entry: cur, revised: false };
 
     if (!cur.locked) {
@@ -138,6 +143,7 @@ export async function editEntry(
       periodId: cur.periodId,
       docState: await currentDocState(tx, cur),
       undocumentedNote: cur.undocumentedNote,
+      note: cur.note,
       ...changes,
       supersedesId: cur.id,
       editReason: reason,

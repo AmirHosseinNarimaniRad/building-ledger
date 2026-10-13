@@ -124,6 +124,11 @@ export function buildLedger(entries: Entry[]): LedgerRow[] {
 
 export async function loadLedger(sql: Db, buildingId: string): Promise<LedgerRow[]> {
   const entries = await sql<Entry[]>`
-    SELECT * FROM ledger_entries WHERE building_id = ${buildingId} ORDER BY created_at, id`;
+    SELECT *,
+      ledger_is_locked(locked_at, created_at) AS locked,
+      CASE WHEN ledger_is_locked(locked_at, created_at) THEN 0
+           ELSE ceil(extract(epoch FROM created_at + interval '30 minutes' - now()) / 60)::int END
+        AS draft_minutes_left
+    FROM ledger_entries WHERE building_id = ${buildingId} ORDER BY created_at, id`;
   return buildLedger(entries);
 }

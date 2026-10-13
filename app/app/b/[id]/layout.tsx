@@ -3,6 +3,7 @@ import { requireBuilding } from "@/lib/auth/session";
 
 const NAV = [
   { href: "", label: "داشبورد" },
+  { href: "/ledger", label: "دفتر" },
   { href: "/units", label: "واحدها" },
 ];
 

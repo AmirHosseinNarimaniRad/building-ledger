@@ -25,6 +25,14 @@ export default async function DashboardPage({ params }: PageProps<"/app/b/[id]">
 
   return (
     <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-2 gap-3">
+        <Link href={`/app/b/${id}/expenses/new`} className={buttonStyles.primary}>
+          ثبت هزینه
+        </Link>
+        <Link href={`/app/b/${id}/payments/new`} className={buttonStyles.secondary}>
+          ثبت دریافتی
+        </Link>
+      </div>
       <Card className="bg-primary text-background">
         <div className="text-label opacity-80">مانده صندوق</div>
         <div className="num text-amount font-bold">{rialToTomanLabel(d.balanceRial)}</div>

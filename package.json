@@ -11,7 +11,8 @@
     "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
     "test": "vitest run",
     "db:seed": "tsx --env-file=.env.local scripts/seed.ts",
-    "db:reset": "tsx --env-file=.env.local scripts/reset.ts && npm run db:seed"
+    "db:reset": "tsx --env-file=.env.local scripts/reset.ts && npm run db:seed",
+    "e2e": "tsx --env-file=.env.local e2e/smoke.mts"
   },
   "dependencies": {
     "jalaali-js": "^2.0.1",
@@ -30,6 +31,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
+    "playwright-core": "^1.64.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",

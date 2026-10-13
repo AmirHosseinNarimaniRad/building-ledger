@@ -1,5 +1,6 @@
 // Stored: Gregorian 'YYYY-MM-DD'. Shown: Jalali. All "today" math is in Asia/Tehran.
-import { toGregorian, toJalaali } from "jalaali-js";
+import { isValidJalaaliDate, toGregorian, toJalaali } from "jalaali-js";
+import { normalizeDigits } from "./money";
 
 export const TIME_ZONE = "Asia/Tehran";
 
@@ -51,4 +52,33 @@ export function jalaliMonthRange(jy: number, jm: number): { start: string; end: 
   const start = fromJalali(jy, jm, 1);
   const end = jm === 12 ? fromJalali(jy + 1, 1, 1) : fromJalali(jy, jm + 1, 1);
   return { start, end };
+}
+
+/** '2026-10-13' → '۱۴۰۵/۰۷/۲۱', for prefilling a Jalali date field. */
+export function jalaliInputValue(iso: string): string {
+  const { jy, jm, jd } = toJalali(iso);
+  return `${digits.format(jy)}/${digits.format(jm).padStart(2, "۰")}/${digits.format(jd).padStart(2, "۰")}`;
+}
+
+/** '۱۴۰۵/۷/۲۱' or '1405-07-21' (any digits) → '2026-10-13', or null if it isn't a real date. */
+export function parseJalaliInput(input: string): string | null {
+  const m = /^(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})$/.exec(normalizeDigits(input).trim());
+  if (!m) return null;
+  const [jy, jm, jd] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  if (!isValidJalaaliDate(jy, jm, jd)) return null;
+  return fromJalali(jy, jm, jd);
+}
+
+const dateTime = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+  timeZone: TIME_ZONE,
+  day: "numeric",
+  month: "long",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** A moment as Tehran sees it: '۲۰ مهر، ۱۸:۰۵'. */
+export function jalaliDateTimeLabel(at: Date): string {
+  return dateTime.format(at);
 }

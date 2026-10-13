@@ -23,12 +23,23 @@ export function tomanInputToRial(input: string): bigint {
 }
 
 const formatter = new Intl.NumberFormat("fa-IR");
+const signedFormatter = new Intl.NumberFormat("fa-IR", { signDisplay: "exceptZero" });
 
-/** 12500000n rial → '۱٬۲۵۰٬۰۰۰ تومان'. Negative amounts get a leading minus sign. */
-export function rialToTomanLabel(rial: bigint): string {
-  const negative = rial < 0n;
-  const abs = negative ? -rial : rial;
+function toToman(rial: bigint): bigint {
   // The DB guarantees whole tomans; a remainder here means a bug upstream.
-  if (abs % 10n !== 0n) throw new Error(`amount ${rial} rial is not a whole toman`);
-  return `${negative ? "−" : ""}${formatter.format(abs / 10n)} تومان`;
+  if (rial % 10n !== 0n) throw new Error(`amount ${rial} rial is not a whole toman`);
+  return rial / 10n;
+}
+
+/**
+ * 12500000n rial → '۱٬۲۵۰٬۰۰۰ تومان'. Negatives use the Persian locale's own form, which
+ * starts with a left-to-right mark so the minus stays beside the number in RTL text.
+ */
+export function rialToTomanLabel(rial: bigint): string {
+  return `${formatter.format(toToman(rial))} تومان`;
+}
+
+/** Like rialToTomanLabel, but always shows the sign: '+۵۰۰٬۰۰۰ تومان', '−۱٬۲۰۰٬۰۰۰ تومان'. */
+export function rialToSignedTomanLabel(rial: bigint): string {
+  return `${signedFormatter.format(toToman(rial))} تومان`;
 }

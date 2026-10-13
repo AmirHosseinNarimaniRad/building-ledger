@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeDigits, rialToTomanLabel, tomanInputToRial } from "./money";
+import { normalizeDigits, rialToSignedTomanLabel, rialToTomanLabel, tomanInputToRial } from "./money";
 import { fromJalali, jalaliLabel, jalaliMonthRange, todayTehran } from "./date";
 
 describe("money", () => {
@@ -18,7 +18,9 @@ describe("money", () => {
 
   it("shows rial as toman with Persian digits", () => {
     expect(rialToTomanLabel(12_500_000n)).toBe("۱٬۲۵۰٬۰۰۰ تومان");
-    expect(rialToTomanLabel(-85_000_000n)).toBe("−۸٬۵۰۰٬۰۰۰ تومان");
+    // LRM + minus: the Persian locale's form, keeps the sign left of the number in RTL text.
+    expect(rialToTomanLabel(-85_000_000n)).toBe("\u200e−۸٬۵۰۰٬۰۰۰ تومان");
+    expect(rialToSignedTomanLabel(5_000_000n)).toBe("\u200e+۵۰۰٬۰۰۰ تومان");
     expect(() => rialToTomanLabel(15n)).toThrow();
   });
 });

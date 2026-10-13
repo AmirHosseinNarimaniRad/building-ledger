@@ -21,12 +21,16 @@ export interface Entry {
   periodId: string | null;
   docState: DocState | null;
   undocumentedNote: string | null;
+  note: string | null;
   targetId: string | null;
   supersedesId: string | null;
   editReason: string | null;
   lockedAt: Date | null;
   createdBy: string;
   createdAt: Date;
+  /** Filled by loadLedger from the database clock, the same one the lock trigger uses. */
+  locked?: boolean;
+  draftMinutesLeft?: number;
 }
 
 export type LedgerErrorCode =

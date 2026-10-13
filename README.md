@@ -25,6 +25,9 @@ npm run dev
 npm test             # uses its own ledger_test database, recreated each run
 ```
 
+`npm run e2e` drives the real flows in headless Chrome (login with the console SMS code, bulk
+units, expenses, documents, payments). Set `E2E_SHOTS=<dir>` to save screenshots.
+
 `npm run db:reset` wipes the dev database, re-applies migrations and seeds again.
 
 ## Ledger rules

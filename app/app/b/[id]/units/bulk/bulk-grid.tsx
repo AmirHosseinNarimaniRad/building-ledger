@@ -55,7 +55,10 @@ export function BulkGrid({ buildingId }: { buildingId: string }) {
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>, i: number, col: Col) {
     if (e.key !== "Enter") return;
     e.preventDefault();
-    if (i === rows.length - 1) setRows((rs) => [...rs, emptyRow()]);
+    // Move focus right away: a fast typist's next keys must land in the next cell.
+    const next = cells.current.get(`${i + 1}:${col}`);
+    if (next) return next.focus();
+    setRows((rs) => [...rs, emptyRow()]);
     requestAnimationFrame(() => cells.current.get(`${i + 1}:${col}`)?.focus());
   }
 
