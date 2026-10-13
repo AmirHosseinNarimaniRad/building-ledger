@@ -104,3 +104,12 @@ describe("OTP login", () => {
     expect(await sessionUser(sql, "not-a-real-token")).toBeNull();
   });
 });
+
+describe("client IP for rate limits", () => {
+  it("never trusts the client-supplied first X-Forwarded-For hop", async () => {
+    const { clientIpFrom } = await import("@/lib/client-ip");
+    expect(clientIpFrom(new Headers({ "x-forwarded-for": "6.6.6.6, 203.0.113.9" }))).toBe("203.0.113.9");
+    expect(clientIpFrom(new Headers({ "x-forwarded-for": "6.6.6.6", "x-real-ip": "203.0.113.9" }))).toBe("203.0.113.9");
+    expect(clientIpFrom(new Headers())).toBeNull();
+  });
+});

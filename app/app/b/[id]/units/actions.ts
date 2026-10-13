@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { rotateToken } from "@/lib/residents";
+import { isUuid } from "@/lib/buildings";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireBuilding } from "@/lib/auth/session";
@@ -93,4 +95,14 @@ export async function addUnitsBulkAction(buildingId: string, rows: RawUnit[]): P
     throw err;
   }
   redirect(`/app/b/${buildingId}/units`);
+}
+
+/** Revokes the unit's resident link and makes a new one (old link lost or shared). */
+export async function rotateLinkAction(buildingId: string, unitId: string) {
+  await requireBuilding(buildingId);
+  if (!isUuid(unitId)) return;
+  const [unit] = await db()`SELECT 1 FROM units WHERE id = ${unitId} AND building_id = ${buildingId}`;
+  if (!unit) return;
+  await rotateToken(db(), unitId);
+  revalidatePath(`/app/b/${buildingId}/units/${unitId}`);
 }

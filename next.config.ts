@@ -7,6 +7,22 @@ const nextConfig: NextConfig = {
     // Receipt photos: 10 MB files plus multipart overhead.
     serverActions: { bodySizeLimit: "11mb" },
   },
+  logging: {
+    // Resident links carry their token in the path; keep it out of the dev log.
+    incomingRequests: { ignore: [/^\/r\//] },
+  },
+  async headers() {
+    return [
+      {
+        source: "/r/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "Cache-Control", value: "private, no-store" },
+        ],
+      },
+    ];
+  },
   turbopack: {
     rules: {
       "*.css": {

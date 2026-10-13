@@ -40,3 +40,13 @@ The rules are enforced in Postgres, not only in app code (`db/migrations/002_led
   both carrying a reason that residents see.
 - The app connects as `app_user`, which has no DDL or `TRUNCATE` rights.
 - Balances are views that sum every row (`db/migrations/003_balance_views.sql`).
+
+## Deployment notes
+
+- `RESIDENT_TOKEN_KEY` (32 random bytes, base64) encrypts resident link tokens at rest. Keep it
+  outside the database; losing it means every resident needs a new link.
+- `APP_URL` is the base of the links sent by SMS. Keep the domain short: the charge SMS must fit
+  two Persian SMS parts.
+- Put the app behind a reverse proxy that **overwrites** `X-Real-IP` with the client address.
+  Rate limits (OTP, `/r/*`) rely on it and never trust a client-supplied `X-Forwarded-For`.
+- The `/r/*` rate limit is in memory: fine for one server process, not for several.

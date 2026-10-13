@@ -15,6 +15,8 @@ export class ConsoleSmsSender implements SmsSender {
 /** Templates. Keep each within two Persian SMS parts (134 characters). */
 export const smsText = {
   otp: (code: string) => `کد ورود شما: ${code}`,
+  chargeIssued: (month: string, amount: string, link: string) => `شارژ ${month}: ${amount} — جزئیات: ${link}`,
+  arrearsReminder: (amount: string, link: string) => `بدهی شما: ${amount} — ${link}`,
 };
 
 let sender: SmsSender | undefined;

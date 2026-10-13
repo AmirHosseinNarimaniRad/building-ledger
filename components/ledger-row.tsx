@@ -13,6 +13,8 @@ export interface LedgerRowContext {
   docs: Map<string, DocumentRef[]>;
   /** Where a document image is served from, e.g. '/api/documents'. */
   docHref: (docId: string) => string;
+  /** Residents never see the draft countdown: what they view is locked as they view it. */
+  hideDraft?: boolean;
 }
 
 function amountView(row: LedgerRow) {
@@ -35,7 +37,7 @@ function amountView(row: LedgerRow) {
  */
 export function LedgerRowView({ row, ctx, actions }: { row: LedgerRow; ctx: LedgerRowContext; actions?: ReactNode }) {
   const e = row.entry;
-  const draftLeft = e.draftMinutesLeft ?? 0;
+  const draftLeft = ctx.hideDraft ? 0 : (e.draftMinutesLeft ?? 0);
   const unit = e.unitId ? ctx.unitLabels.get(e.unitId) : undefined;
   const docs = row.entryIds.flatMap((id) => ctx.docs.get(id) ?? []);
 

@@ -53,6 +53,15 @@ export async function documentsByEntry(sql: Db, buildingId: string): Promise<Map
   return map;
 }
 
+/** The document, only if it belongs to this building (resident links). */
+export async function documentForBuilding(sql: Db, docId: string, buildingId: string) {
+  const [doc] = await sql<{ storageKey: string; mimeType: string }[]>`
+    SELECT d.storage_key, d.mime_type FROM documents d
+    JOIN ledger_entries e ON e.id = d.entry_id
+    WHERE d.id = ${docId} AND e.building_id = ${buildingId}`;
+  return doc ?? null;
+}
+
 /** The document, only if this user manages its building. */
 export async function documentForManager(sql: Db, docId: string, userId: string) {
   const [doc] = await sql<{ storageKey: string; mimeType: string }[]>`

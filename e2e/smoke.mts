@@ -48,7 +48,14 @@ async function waitFor<T>(fn: () => T | undefined | Promise<T | undefined>, what
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 try {
   await waitFor(async () => ((await fetch(`${BASE}/login`).catch(() => null))?.ok ? true : undefined), "dev server");
-  const context = await browser.newContext({ locale: "fa-IR", viewport: { width: 420, height: 900 } });
+  // No reverse proxy in dev: give this run its own client address, as nginx would via X-Real-IP,
+  // so repeated runs don't hit the 5-codes-an-hour login limit.
+  const runIp = `10.${randomInt(256)}.${randomInt(256)}.${randomInt(256)}`;
+  const context = await browser.newContext({
+    locale: "fa-IR",
+    viewport: { width: 420, height: 900 },
+    extraHTTPHeaders: { "x-real-ip": runIp },
+  });
   const page = await context.newPage();
 
   // 1. Login with a fresh phone number.
@@ -151,6 +158,81 @@ try {
   check(mine.status() === 200 && mine.headers()["content-type"] === "image/png", "manager can open the document");
   const stranger = await (await browser.newContext()).request.get(`${BASE}${docHref}`);
   check(stranger.status() === 404, "no session → 404 for the document");
+
+  // ---------------- step 5: charge, SMS link, resident page ----------------
+  // 9. Give unit ۱۰۱ a phone so it gets the SMS.
+  const residentPhone = `0912${String(randomInt(10_000_000)).padStart(7, "0")}`;
+  await page.goto(`${buildingUrl}/units`);
+  await page.locator("tr", { hasText: "۱۰۱" }).first().getByRole("link", { name: "ویرایش" }).click();
+  await page.getByLabel("موبایل ساکن").fill(residentPhone);
+  await page.getByRole("button", { name: "ذخیره" }).click();
+  await page.waitForURL(/\/units$/);
+
+  // 10. Issue this month's charge: preview first, then confirm.
+  await page.goto(`${buildingUrl}/charges/new`);
+  await page.getByLabel("مبلغ کل شارژ ماه (تومان)").fill("20000000");
+  check(await page.getByRole("button", { name: /تأیید، صدور/ }).isDisabled(), "confirm is disabled until a preview is shown");
+  await page.getByRole("button", { name: "پیش‌نمایش سهم هر واحد" }).click();
+  await page.locator("td", { hasText: "جمع" }).waitFor();
+  const previewRows = await page.locator("tbody tr").count();
+  const previewTotal = await page.locator("tr", { hasText: "جمع" }).locator("td").nth(1).textContent();
+  check(previewRows === 21 && previewTotal === "۲۰٬۰۰۰٬۰۰۰ تومان", "preview lists 20 units and sums to exactly the total");
+  await shot(page, "07-charge-preview");
+  await page.getByRole("button", { name: /تأیید، صدور/ }).click();
+  await page.waitForURL(/\/charges\?sent=1/);
+  check(await page.getByText("برای ۱ واحد پیامک فرستاده شد").isVisible(), "charge issued, 1 SMS sent");
+
+  // 11. The SMS carries the resident link.
+  const smsE164 = `+98${residentPhone.slice(1)}`;
+  const sms = await waitFor(() => new RegExp(`\\[sms → \\${smsE164}\\] (شارژ [^\\n]*)`).exec(log)?.[1], "charge SMS");
+  const link = /(http\S+\/r\/[A-Za-z0-9_-]{22})$/.exec(sms)?.[1];
+  check(!!link && sms.length <= 134, `charge SMS has the link and fits 2 parts (${sms.length} chars)`);
+  const residentPath = new URL(link!).pathname;
+
+  // 12. A fresh expense after the charge: still a draft until a resident sees it.
+  await page.goto(`${buildingUrl}/expenses/new`);
+  await page.getByRole("button", { name: "دستی" }).click();
+  await page.getByLabel("مبلغ (تومان)").fill("350000");
+  await page.getByLabel("بابت").fill("خرید لامپ");
+  await page.getByRole("button", { name: "ثبت هزینه" }).click();
+  await page.waitForURL(/\/ledger$/);
+  check(await page.locator("article", { hasText: "خرید لامپ" }).getByText(/دقیقه قابل ویرایش/).isVisible(), "new expense is a draft");
+
+  // 13. Open the link as a stranger: no login, no cookies.
+  const residentCtx = await browser.newContext({ locale: "fa-IR", viewport: { width: 420, height: 900 } });
+  const resident = await residentCtx.newPage();
+  const resp = await resident.goto(`${BASE}${residentPath}`);
+  const h = resp!.headers();
+  check(resp!.status() === 200, "resident link opens without login");
+  check(h["x-robots-tag"]?.includes("noindex") && h["referrer-policy"] === "no-referrer", "noindex + no-referrer headers on /r/*");
+  const body = (await resident.locator("main").textContent()) ?? "";
+  check(body.includes("واحد ۱۰۱") && body.includes("سهم شما") && body.includes("نحوه محاسبه"), "shows this unit's bill and how it was calculated");
+  check(body.includes("خرید لامپ") && body.includes("نظافت راه‌پله") && body.includes("مانده صندوق"), "shows the building's expenses and fund balance");
+  check(!/واحد (۱۰[234]|[۲-۵]۰[۱-۴])/.test(body), "no other unit appears anywhere on the page");
+  check((await resident.locator('a[href^="/app"]').count()) === 0, "no link into the manager's space");
+  check(!body.includes("قابل ویرایش"), "residents never see a draft badge");
+  await shot(resident, "08-resident");
+
+  // 14. Documents through the link; a made-up token gets nothing.
+  const rDoc = await resident.locator("a", { hasText: "تصویر سند" }).first().getAttribute("href");
+  check((await resident.request.get(`${BASE}${rDoc}`)).status() === 200, "resident can open a document image");
+  const forged = rDoc!.replace(/\/r\/[^/]+\//, "/r/AAAAAAAAAAAAAAAAAAAAAA/");
+  check((await resident.request.get(`${BASE}${forged}`)).status() === 404, "forged token → 404 for the document");
+
+  // 15. What the resident saw is now locked: the draft badge is gone for the manager.
+  await page.goto(`${buildingUrl}/ledger`);
+  check((await page.locator("article", { hasText: "خرید لامپ" }).getByText(/دقیقه قابل ویرایش/).count()) === 0, "viewing the resident page locked the draft");
+
+  // 16. Unknown and revoked links look exactly the same.
+  await resident.goto(`${BASE}/r/AAAAAAAAAAAAAAAAAAAAAA`);
+  const unknownText = await resident.locator("main").textContent();
+  await resident.goto(`${BASE}/r/not-even-a-token`);
+  check(unknownText?.includes("این لینک معتبر نیست") === true && (await resident.locator("main").textContent()) === unknownText, "invalid links all get the same page");
+
+  // 17. Rate limit: 30 a minute per IP on /r/*.
+  const codes: number[] = [];
+  for (let i = 0; i < 35; i++) codes.push((await fetch(`${BASE}/r/AAAAAAAAAAAAAAAAAAAAAA`)).status);
+  check(codes.includes(429), "rate limit kicks in on /r/*");
 } catch (err) {
   console.error(err);
   failures++;

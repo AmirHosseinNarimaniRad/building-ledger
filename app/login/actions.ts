@@ -8,6 +8,7 @@ import { normalizeDigits } from "@/lib/money";
 import { getSmsSender } from "@/lib/sms";
 import { OtpError, requestOtp, verifyOtp } from "@/lib/auth/otp";
 import { startSession } from "@/lib/auth/session";
+import { clientIpFrom } from "@/lib/client-ip";
 
 export interface LoginState {
   step: "phone" | "code";
@@ -16,8 +17,7 @@ export interface LoginState {
 }
 
 async function clientIp() {
-  const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0].trim() || h.get("x-real-ip") || null;
+  return clientIpFrom(await headers());
 }
 
 async function requestCode(form: FormData): Promise<LoginState> {

@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { appDb, makeBuilding, ownerDb } from "@/test/support";
 import { buildingForManager } from "./buildings";
+import { currentToken } from "./residents";
 import { addUnits, DuplicateLabelError, listUnits, parseUnit, updateUnit } from "./units";
 
 const sql = appDb();
@@ -45,9 +46,7 @@ describe("units", () => {
   it("a new phone number revokes the unit's resident link", async () => {
     const b = await makeBuilding(sql, 1);
     const unitId = b.unitIds[0];
-    await ownerDb()`
-      INSERT INTO resident_tokens (unit_id, token_hash, expires_at)
-      VALUES (${unitId}, ${Buffer.from("x".repeat(32))}, now() + interval '180 days')`;
+    await currentToken(sql, unitId);
 
     const base = parseUnit({ label: "1", phone: "09121111111" }).value;
     await updateUnit(sql, b.buildingId, unitId, base); // null → number: a change
