@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0F5C8C"/>
+  <!-- open ledger -->
+  <path d="M256 150c-38-26-92-34-150-26v236c58-8 112 0 150 26 38-26 92-34 150-26V124c-58-8-112 0-150 26z" fill="#fff"/>
+  <path d="M256 150v236" stroke="#0F5C8C" stroke-width="10"/>
+  <!-- ruled lines on the left page -->
+  <path d="M140 190h86M140 226h86M140 262h70" stroke="#64B2DC" stroke-width="12" stroke-linecap="round"/>
+  <!-- check mark on the right page: nothing changes silently -->
+  <path d="M296 252l30 30 58-62" fill="none" stroke="#0E7A52" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

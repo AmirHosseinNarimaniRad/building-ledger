@@ -53,3 +53,26 @@ body {
 .num {
   font-variant-numeric: tabular-nums;
 }
+
+@page {
+  size: A4;
+  margin: 15mm;
+}
+
+@media print {
+  /* Paper is white even when the screen is dark. */
+  :root {
+    --primary: #0f5c8c;
+    --good: #0e7a52;
+    --warn: #8f5e00;
+    --danger: #b3261e;
+    --neutral: #edeff3;
+    --ink: #121826;
+    --background: #ffffff;
+  }
+  body {
+    background: #fff;
+    color: #000;
+    font-size: 12pt;
+  }
+}

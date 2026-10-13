@@ -5,7 +5,9 @@ const NAV = [
   { href: "", label: "داشبورد" },
   { href: "/ledger", label: "دفتر" },
   { href: "/charges", label: "شارژها" },
+  { href: "/arrears", label: "معوقات" },
   { href: "/units", label: "واحدها" },
+  { href: "/report", label: "گزارش" },
 ];
 
 export default async function BuildingLayout({ children, params }: LayoutProps<"/app/b/[id]">) {
@@ -13,10 +15,10 @@ export default async function BuildingLayout({ children, params }: LayoutProps<"
   const { building } = await requireBuilding(id);
   return (
     <>
-      <div className="mb-5">
+      <div className="mb-5 print:hidden">
         <div className="text-small text-ink/60">{building.address}</div>
         <div className="text-title font-bold">{building.name}</div>
-        <nav className="mt-3 flex gap-2 overflow-x-auto">
+        <nav className="mt-3 flex flex-wrap gap-2">
           {NAV.map((n) => (
             <Link
               key={n.href}

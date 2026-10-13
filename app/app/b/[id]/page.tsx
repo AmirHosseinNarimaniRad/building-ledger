@@ -38,11 +38,11 @@ export default async function DashboardPage({ params }: PageProps<"/app/b/[id]">
         <div className="num text-amount font-bold">{rialToTomanLabel(d.balanceRial)}</div>
       </Card>
       <div className="grid grid-cols-2 gap-3">
-        <Card>
+        <Link href={`/app/b/${id}/arrears`} className="rounded-2xl border border-ink/10 p-4 hover:border-danger">
           <div className="text-label text-ink/70">معوقات</div>
           <div className="num text-title font-bold text-danger">{rialToTomanLabel(d.arrearsRial)}</div>
           <div className="text-small text-ink/60">{fa.format(d.unitsOwing)} واحد بدهکار</div>
-        </Card>
+        </Link>
         <Card>
           <div className="text-label text-ink/70">مستندسازی این ماه</div>
           <div className="num text-title font-bold">

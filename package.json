@@ -12,7 +12,8 @@
     "test": "vitest run",
     "db:seed": "tsx --env-file=.env.local scripts/seed.ts",
     "db:reset": "tsx --env-file=.env.local scripts/reset.ts && npm run db:seed",
-    "e2e": "tsx --env-file=.env.local e2e/smoke.mts"
+    "e2e": "tsx --env-file=.env.local e2e/smoke.mts",
+    "e2e:pwa": "tsx --env-file=.env.local e2e/pwa.mts"
   },
   "dependencies": {
     "jalaali-js": "^2.0.1",

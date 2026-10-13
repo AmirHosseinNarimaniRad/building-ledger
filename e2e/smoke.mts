@@ -229,6 +229,30 @@ try {
   await resident.goto(`${BASE}/r/not-even-a-token`);
   check(unknownText?.includes("این لینک معتبر نیست") === true && (await resident.locator("main").textContent()) === unknownText, "invalid links all get the same page");
 
+  // ---------------- step 6: arrears, reminders, report ----------------
+  // 18. Unit ۱۰۱ was charged 1,000,000 and paid 600,000: it owes 400,000.
+  await page.goto(`${buildingUrl}/arrears`);
+  const owe = page.locator("div.rounded-2xl", { hasText: "واحد ۱۰۱" });
+  check((await owe.textContent())?.includes("۴۰۰٬۰۰۰ تومان") ?? false, "arrears lists ۱۰۱ owing ۴۰۰٬۰۰۰");
+  const remindStart = log.length;
+  await owe.getByRole("button", { name: "یادآور پیامکی" }).click();
+  await page.waitForURL(/\/arrears\?sent=1/);
+  const reminder = await waitFor(() => new RegExp(`\\[sms → \\${smsE164}\\] (بدهی شما[^\\n]*)`).exec(log.slice(remindStart))?.[1], "reminder SMS");
+  check(reminder.startsWith("بدهی شما: ۴۰۰٬۰۰۰ تومان — ") && reminder.endsWith(residentPath), "reminder SMS has the debt and the same link");
+  check(await page.locator("div.rounded-2xl", { hasText: "واحد ۱۰۱" }).getByText(/یادآور فرستاده شد/).isVisible(), "a second reminder is held back for 24 hours");
+  await shot(page, "09-arrears");
+
+  // 19. Monthly report reconciles on screen, and prints without the app chrome.
+  await page.goto(`${buildingUrl}/report`);
+  const report = (await page.locator("article").textContent()) ?? "";
+  check(report.includes("مانده صندوق در ابتدای ماه") && report.includes("مانده صندوق در پایان ماه"), "report shows opening and closing balance");
+  check(report.includes("خرید لامپ") && report.includes("نظافت راه‌پله"), "report lists the month's expenses");
+  await page.emulateMedia({ media: "print" });
+  check(!(await page.getByText("دفتر شفاف ساختمان").first().isVisible()) && !(await page.getByRole("button", { name: /چاپ/ }).isVisible()), "print view hides the header, nav and buttons");
+  await shot(page, "10-report-print");
+  await page.pdf({ path: path.join(SHOTS ?? "/tmp", "report.pdf"), format: "A4" }).catch(() => {});
+  await page.emulateMedia({ media: "screen" });
+
   // 17. Rate limit: 30 a minute per IP on /r/*.
   const codes: number[] = [];
   for (let i = 0; i < 35; i++) codes.push((await fetch(`${BASE}/r/AAAAAAAAAAAAAAAAAAAAAA`)).status);
