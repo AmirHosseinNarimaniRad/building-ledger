@@ -9,7 +9,9 @@
     "lint": "eslint",
     "db:up": "docker compose up -d --wait db",
     "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "db:reset": "tsx --env-file=.env.local scripts/reset.ts && npm run db:seed"
   },
   "dependencies": {
     "jalaali-js": "^2.0.1",
