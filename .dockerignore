@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+.env*
+storage
+dist
+deploy
+e2e
+*.tsbuildinfo

@@ -47,6 +47,11 @@ The rules are enforced in Postgres, not only in app code (`db/migrations/002_led
 - The app connects as `app_user`, which has no DDL or `TRUNCATE` rights.
 - Balances are views that sum every row (`db/migrations/003_balance_views.sql`).
 
+## Deployment
+
+See [`deploy/README.md`](deploy/README.md): Docker Compose with nginx (HTTPS), daily backups and a
+tested restore.
+
 ## Deployment notes
 
 - `RESIDENT_TOKEN_KEY` (32 random bytes, base64) encrypts resident link tokens at rest. Keep it

@@ -44,3 +44,9 @@ next-env.d.ts
 
 # uploaded documents
 /storage
+
+# deployment secrets and data (deploy/)
+/deploy/.env
+/deploy/letsencrypt
+/deploy/backups
+/dist

@@ -1,0 +1,54 @@
+# ${DOMAIN} is filled in by the nginx image at start-up; nginx's own $variables are left alone.
+
+server {
+    listen 80;
+    server_name ${DOMAIN};
+
+    # Let's Encrypt renewals.
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:SSL:10m;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
+    # Receipt photos: 10 MB plus form overhead.
+    client_max_body_size 12m;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml application/manifest+json;
+
+    # Rate limits trust X-Real-IP, so it is always overwritten here with the real client address,
+    # and X-Forwarded-For is replaced, never appended to.
+    # $http_host keeps the port: Next's Server Actions compare it with the browser's Origin
+    # and reject every form post if they differ.
+    proxy_set_header Host              $http_host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host  $http_host;
+
+    # Resident links carry their token in the path: never write them to the access log.
+    location /r/ {
+        access_log off;
+        proxy_pass http://app:3000;
+    }
+
+    location / {
+        proxy_pass http://app:3000;
+    }
+}

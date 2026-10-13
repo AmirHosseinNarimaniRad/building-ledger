@@ -11,6 +11,8 @@ const appHost = (() => {
 })();
 
 const nextConfig: NextConfig = {
+  // A self-contained server for the Docker image (see Dockerfile).
+  output: "standalone",
   allowedDevOrigins: appHost && appHost !== "localhost" ? [appHost] : [],
   // cacheComponents is off: nearly every page is per-user and reads the database at request
   // time, so prerendering buys nothing and would force Suspense around every session read.

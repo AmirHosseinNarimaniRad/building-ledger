@@ -2,6 +2,8 @@
 // console SMS sender prints, and walks the manager flows built so far.
 //   npm run e2e            (needs Postgres up and migrated; Chrome installed)
 //   E2E_SHOTS=dir npm run e2e   saves screenshots
+//   Against a running deployment instead of a dev server:
+//   E2E_BASE_URL=https://localhost:8443 E2E_LOG_CMD="docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env logs -f --no-log-prefix app" npm run e2e
 import { spawn } from "node:child_process";
 import { randomInt } from "node:crypto";
 import { mkdir } from "node:fs/promises";
@@ -9,7 +11,7 @@ import path from "node:path";
 import { chromium, type Page } from "playwright-core";
 
 const PORT = 3100;
-const BASE = `http://localhost:${PORT}`;
+const BASE = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`;
 const SHOTS = process.env.E2E_SHOTS;
 // A 1×1 PNG: enough for upload, sniffing and serving.
 const PNG = Buffer.from(
@@ -29,8 +31,10 @@ async function shot(page: Page, name: string) {
   await page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage: true });
 }
 
-// --- dev server, with its stdout watched for SMS codes ---
-const server = spawn("npx", ["next", "dev", "-p", String(PORT)], { env: process.env, stdio: ["ignore", "pipe", "pipe"] });
+// --- dev server (or a deployment's log stream), watched for SMS codes ---
+const server = process.env.E2E_BASE_URL
+  ? spawn("sh", ["-c", process.env.E2E_LOG_CMD ?? "true"], { stdio: ["ignore", "pipe", "pipe"] })
+  : spawn("npx", ["next", "dev", "-p", String(PORT)], { env: process.env, stdio: ["ignore", "pipe", "pipe"] });
 let log = "";
 server.stdout.on("data", (d) => (log += d));
 server.stderr.on("data", (d) => (log += d));
@@ -46,12 +50,16 @@ async function waitFor<T>(fn: () => T | undefined | Promise<T | undefined>, what
 }
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });
+// Local deployments use a self-signed certificate.
+const tls = { ignoreHTTPSErrors: BASE.startsWith("https://localhost") };
 try {
-  await waitFor(async () => ((await fetch(`${BASE}/login`).catch(() => null))?.ok ? true : undefined), "dev server");
+  if (tls.ignoreHTTPSErrors) process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+  await waitFor(async () => ((await fetch(`${BASE}/login`).catch(() => null))?.ok ? true : undefined), "server");
   // No reverse proxy in dev: give this run its own client address, as nginx would via X-Real-IP,
   // so repeated runs don't hit the 5-codes-an-hour login limit.
   const runIp = `10.${randomInt(256)}.${randomInt(256)}.${randomInt(256)}`;
   const context = await browser.newContext({
+    ...tls,
     locale: "fa-IR",
     viewport: { width: 420, height: 900 },
     extraHTTPHeaders: { "x-real-ip": runIp },
@@ -156,7 +164,7 @@ try {
   const docHref = await page.locator("a", { hasText: "تصویر سند" }).first().getAttribute("href");
   const mine = await page.request.get(`${BASE}${docHref}`);
   check(mine.status() === 200 && mine.headers()["content-type"] === "image/png", "manager can open the document");
-  const stranger = await (await browser.newContext()).request.get(`${BASE}${docHref}`);
+  const stranger = await (await browser.newContext(tls)).request.get(`${BASE}${docHref}`);
   check(stranger.status() === 404, "no session → 404 for the document");
 
   // ---------------- step 5: charge, SMS link, resident page ----------------
@@ -199,7 +207,7 @@ try {
   check(await page.locator("article", { hasText: "خرید لامپ" }).getByText(/دقیقه قابل ویرایش/).isVisible(), "new expense is a draft");
 
   // 13. Open the link as a stranger: no login, no cookies.
-  const residentCtx = await browser.newContext({ locale: "fa-IR", viewport: { width: 420, height: 900 } });
+  const residentCtx = await browser.newContext({ ...tls, locale: "fa-IR", viewport: { width: 420, height: 900 } });
   const resident = await residentCtx.newPage();
   const resp = await resident.goto(`${BASE}${residentPath}`);
   const h = resp!.headers();
