@@ -28,6 +28,10 @@ npm test             # uses its own ledger_test database, recreated each run
 `npm run e2e` drives the real flows in headless Chrome (login with the console SMS code, bulk
 units, expenses, documents, payments). Set `E2E_SHOTS=<dir>` to save screenshots.
 
+To try it on a phone on the same Wi-Fi: set `APP_URL=http://<your-mac-ip>:3000` in `.env.local`,
+run `npm run dev -- --hostname 0.0.0.0`, and open the link from the SMS printed in the terminal.
+The dev server allows `APP_URL`'s host automatically.
+
 `npm run db:reset` wipes the dev database, re-applies migrations and seeds again.
 
 ## Ledger rules
