@@ -1,13 +1,12 @@
 // Sending resident SMS. Each unit's link is the same every month (see residents.ts).
 import type { Db } from "./db";
-import type { SmsSender } from "./sms";
-import { smsText } from "./sms";
+import { SMS_MAX_FAILURES_IN_A_ROW, type SmsSender } from "./sms";
 import { jalaliMonthName } from "./date";
-import { rialToTomanLabel } from "./money";
+import { rialToTomanDigits } from "./money";
 import { currentToken, residentUrl } from "./residents";
 
-/** Texts every active unit with a phone and a charge in this period. Returns how many were sent. */
-export async function sendChargeNotices(sql: Db, sms: SmsSender, periodId: string): Promise<number> {
+/** Texts every active unit with a phone and a charge in this period. */
+export async function sendChargeNotices(sql: Db, sms: SmsSender, periodId: string): Promise<{ sent: number; failed: number }> {
   const rows = await sql<{ unitId: string; phone: string; amountRial: bigint; jalaliMonth: number }[]>`
     SELECT u.id AS unit_id, u.phone, e.amount_rial, cp.jalali_month
     FROM ledger_entries e
@@ -18,10 +17,18 @@ export async function sendChargeNotices(sql: Db, sms: SmsSender, periodId: strin
     ORDER BY u.sort_key`;
 
   let sent = 0;
+  let failedInARow = 0;
   for (const r of rows) {
+    if (failedInARow >= SMS_MAX_FAILURES_IN_A_ROW) break;
     const link = residentUrl(await currentToken(sql, r.unitId));
-    const res = await sms.send(r.phone, smsText.chargeIssued(jalaliMonthName(r.jalaliMonth), rialToTomanLabel(r.amountRial), link));
+    const res = await sms.send(r.phone, {
+      kind: "chargeIssued",
+      month: jalaliMonthName(r.jalaliMonth),
+      amount: rialToTomanDigits(r.amountRial),
+      link,
+    });
+    failedInARow = res.ok ? 0 : failedInARow + 1;
     if (res.ok) sent++;
   }
-  return sent;
+  return { sent, failed: rows.length - sent };
 }

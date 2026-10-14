@@ -1,7 +1,6 @@
 import type { Db } from "./db";
-import type { SmsSender } from "./sms";
-import { smsText } from "./sms";
-import { rialToTomanLabel } from "./money";
+import { SMS_MAX_FAILURES_IN_A_ROW, type SmsSender } from "./sms";
+import { rialToTomanDigits } from "./money";
 import { currentToken, residentUrl } from "./residents";
 
 /** At most one reminder per unit in this window. */
@@ -30,23 +29,41 @@ export async function listArrears(sql: Db, buildingId: string): Promise<ArrearsR
     ORDER BY d.debt_rial DESC, u.sort_key`;
 }
 
-/** Texts each remindable unit its current debt and link. unitIds = null means every unit that owes. */
+/**
+ * Texts each remindable unit its current debt and link. unitIds = null means every unit that owes.
+ * skipped: no phone, or reminded in the last 24 hours. failed: the SMS panel refused or was down.
+ */
 export async function sendReminders(
   sql: Db,
   sms: SmsSender,
   args: { buildingId: string; unitIds: string[] | null; by: string },
-): Promise<{ sent: number; skipped: number }> {
+): Promise<{ sent: number; skipped: number; failed: number }> {
   const rows = (await listArrears(sql, args.buildingId)).filter(
     (r) => args.unitIds === null || args.unitIds.includes(r.unitId),
   );
   let sent = 0;
+  let skipped = 0;
+  let failed = 0;
+  let failedInARow = 0;
   for (const r of rows) {
-    if (!r.remindable || !r.phone) continue;
+    if (!r.remindable || !r.phone) {
+      skipped++;
+      continue;
+    }
+    if (failedInARow >= SMS_MAX_FAILURES_IN_A_ROW) {
+      failed++; // the panel is down or out of credit: stop trying
+      continue;
+    }
     const link = residentUrl(await currentToken(sql, r.unitId));
-    const res = await sms.send(r.phone, smsText.arrearsReminder(rialToTomanLabel(r.debtRial), link));
-    if (!res.ok) continue;
+    const res = await sms.send(r.phone, { kind: "arrearsReminder", amount: rialToTomanDigits(r.debtRial), link });
+    if (!res.ok) {
+      failed++;
+      failedInARow++;
+      continue;
+    }
+    failedInARow = 0;
     await sql`INSERT INTO arrears_reminders (unit_id, amount_rial, sent_by) VALUES (${r.unitId}, ${r.debtRial}, ${args.by})`;
     sent++;
   }
-  return { sent, skipped: rows.length - sent };
+  return { sent, skipped, failed };
 }

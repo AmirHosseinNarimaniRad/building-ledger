@@ -11,10 +11,10 @@ import { getSmsSender } from "@/lib/sms";
 export async function remindAction(buildingId: string, unitId?: string) {
   const { user } = await requireBuilding(buildingId);
   if (unitId !== undefined && !isUuid(unitId)) return;
-  const { sent, skipped } = await sendReminders(db(), getSmsSender(), {
+  const { sent, skipped, failed } = await sendReminders(db(), getSmsSender(), {
     buildingId,
     unitIds: unitId ? [unitId] : null,
     by: user.id,
   });
-  redirect(`/app/b/${buildingId}/arrears?sent=${sent}&skipped=${skipped}`);
+  redirect(`/app/b/${buildingId}/arrears?sent=${sent}&skipped=${skipped}&failed=${failed}`);
 }

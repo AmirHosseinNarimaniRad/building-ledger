@@ -72,7 +72,7 @@ lib/              domain logic, framework-free and unit-tested
   ledger/         entries, revisions, locking, balances
   charge/         charge splitting and issuing
   auth/           OTP codes and sessions
-  sms/            SMS templates and senders (console for now)
+  sms/            SMS messages and senders: console (dev), Kavenegar, SMS.ir
   receipt/        receipt reader (mock for now)
 db/migrations/    the schema, the ledger rules and the balance views
 e2e/              browser tests: the full manager/resident flow and PWA installability
@@ -93,8 +93,8 @@ npm run db:seed                 # demo building: 20 units, a charge, payments, e
 npm run dev                     # http://localhost:3000
 ```
 
-Log in as the demo manager with `09120000000`. No SMS panel is connected in development: login
-codes and resident links are printed in the terminal.
+Log in as the demo manager with `09120000000`. With `SMS_SENDER=console` (the default), login
+codes and resident links are printed in the terminal instead of being sent.
 
 `npm run db:reset` wipes the dev database, re-applies the migrations and seeds it again.
 
@@ -105,7 +105,7 @@ run `npm run dev -- --hostname 0.0.0.0`, and open that address. The dev server a
 ## Tests
 
 ```sh
-npm test                        # 63 unit tests on their own ledger_test database, recreated each run
+npm test                        # 75 unit tests on their own ledger_test database, recreated each run
 npm run e2e                     # the full manager and resident flow in headless Chrome
 npm run build && npm run e2e:pwa  # production build: installable, service worker, offline page
 ```
@@ -145,9 +145,16 @@ Iranian servers that cannot reach Docker Hub or npm.
 Keep a copy of the production `.env` off the server: losing `RESIDENT_TOKEN_KEY` means every
 resident needs a new link.
 
+## SMS
+
+Every SMS is a template approved in the provider's panel, sent through Kavenegar or SMS.ir and
+chosen by `SMS_SENDER`. [`deploy/SMS.md`](deploy/SMS.md) has the template texts to submit, the
+settings, and `sms:test`, which sends one of each to your phone. If the panel fails, nothing is lost:
+login says so and can be retried, and charges are issued anyway, with the unsent SMS counted on screen.
+
 ## Roadmap
 
-1. Connect a real SMS panel (Kavenegar or SMS.ir).
+1. Approve the SMS templates and deploy to a server.
 2. A pilot with one real building.
 3. A real receipt reader for bank-receipt photos (currently a mock).
 

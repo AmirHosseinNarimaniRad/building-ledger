@@ -2,7 +2,7 @@
 // one send per 60 s, at most 5 per hour per phone and per IP.
 import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { withTx, type Db } from "@/lib/db";
-import { smsText, type SmsSender } from "@/lib/sms";
+import type { SmsSender } from "@/lib/sms";
 
 export const OTP_TTL_MINUTES = 5;
 export const OTP_MAX_ATTEMPTS = 5;
@@ -10,7 +10,7 @@ export const OTP_RESEND_SECONDS = 60;
 export const OTP_MAX_PER_HOUR = 5;
 export const SESSION_DAYS = 30;
 
-export type OtpErrorCode = "too_soon" | "too_many" | "expired" | "wrong_code" | "too_many_attempts";
+export type OtpErrorCode = "too_soon" | "too_many" | "expired" | "wrong_code" | "too_many_attempts" | "sms_failed";
 
 const MESSAGES: Record<OtpErrorCode, string> = {
   too_soon: "کمی صبر کنید و دوباره درخواست کد بدهید",
@@ -18,6 +18,7 @@ const MESSAGES: Record<OtpErrorCode, string> = {
   expired: "کد منقضی شده؛ کد تازه بگیرید",
   wrong_code: "کد درست نیست",
   too_many_attempts: "تلاش‌های ناموفق زیاد بود؛ کد تازه بگیرید",
+  sms_failed: "ارسال پیامک ممکن نشد؛ چند لحظه بعد دوباره امتحان کنید",
 };
 
 export class OtpError extends Error {
@@ -41,7 +42,7 @@ export function hashToken(raw: string) {
 export async function requestOtp(sql: Db, args: { phone: string; ip: string | null; sms: SmsSender }) {
   const [stats] = await sql<{ lastAgeSeconds: number | null; phoneCount: number; ipCount: number }[]>`
     SELECT
-      (SELECT extract(epoch FROM now() - max(created_at))::int FROM otp_codes WHERE phone = ${args.phone}) AS last_age_seconds,
+      (SELECT extract(epoch FROM now() - max(created_at))::int FROM otp_codes WHERE phone = ${args.phone} AND consumed_at IS NULL) AS last_age_seconds,
       (SELECT count(*)::int FROM otp_codes WHERE phone = ${args.phone} AND created_at > now() - interval '1 hour') AS phone_count,
       (SELECT count(*)::int FROM otp_codes WHERE ip = ${args.ip} AND created_at > now() - interval '1 hour') AS ip_count`;
 
@@ -58,7 +59,13 @@ export async function requestOtp(sql: Db, args: { phone: string; ip: string | nu
     INSERT INTO otp_codes (id, phone, code_hash, ip, expires_at)
     VALUES (${id}, ${args.phone}, ${hashCode(id, code)}, ${args.ip},
             now() + ${`${OTP_TTL_MINUTES} minutes`}::interval)`;
-  await args.sms.send(args.phone, smsText.otp(code));
+  const sent = await args.sms.send(args.phone, { kind: "otp", code });
+  if (!sent.ok) {
+    // Void the code so nobody can use it, and let them retry at once. It still counts toward the
+    // hourly limits, so a failing number can't be used to hammer the SMS panel.
+    await sql`UPDATE otp_codes SET consumed_at = now() WHERE id = ${id}`;
+    throw new OtpError("sms_failed");
+  }
 }
 
 /** Checks the code; on success returns the user id, creating the manager on first login. */

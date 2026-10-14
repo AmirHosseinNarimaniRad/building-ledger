@@ -13,7 +13,7 @@ const fa = new Intl.NumberFormat("fa-IR");
 
 export default async function ArrearsPage({ params, searchParams }: PageProps<"/app/b/[id]/arrears">) {
   const { id } = await params;
-  const { sent, skipped } = await searchParams;
+  const { sent, skipped, failed } = await searchParams;
   await requireBuilding(id);
   const rows = await listArrears(db(), id);
   const total = rows.reduce((a, r) => a + r.debtRial, 0n);
@@ -39,6 +39,11 @@ export default async function ArrearsPage({ params, searchParams }: PageProps<"/
             برای {fa.format(Number(sent))} واحد یادآور فرستاده شد
             {Number(skipped) > 0 && ` · ${fa.format(Number(skipped))} واحد بدون موبایل یا با یادآور در ۲۴ ساعت گذشته`}
           </Alert>
+        </div>
+      )}
+      {Number(failed) > 0 && (
+        <div className="mb-3">
+          <Alert tone="danger">پیامک {fa.format(Number(failed))} واحد ارسال نشد؛ کمی بعد دوباره امتحان کنید.</Alert>
         </div>
       )}
 

@@ -90,6 +90,9 @@ printed in the app log:
 docker compose -f docker-compose.prod.yml --env-file .env logs -f app | grep sms
 ```
 
+To connect Kavenegar or SMS.ir, follow [`SMS.md`](SMS.md): the template texts to submit, the
+settings, and a test send to your own phone.
+
 ## 6. Backups — do not skip
 
 The `backup` service writes `backups/ledger-<time>.dump` (database) and

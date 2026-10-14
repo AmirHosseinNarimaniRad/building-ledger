@@ -25,7 +25,7 @@ function formulaLabel(f: FormulaSnapshot["formula"]) {
 
 export default async function ChargesPage({ params, searchParams }: PageProps<"/app/b/[id]/charges">) {
   const { id } = await params;
-  const { sent } = await searchParams;
+  const { sent, failed } = await searchParams;
   await requireBuilding(id);
   const periods = await db()<
     { id: string; jalaliYear: number; jalaliMonth: number; totalRial: bigint; formula: FormulaSnapshot; issuedAt: Date; voidedAt: Date | null }[]
@@ -47,6 +47,14 @@ export default async function ChargesPage({ params, searchParams }: PageProps<"/
       {typeof sent === "string" && (
         <div className="mb-3">
           <Alert tone="good">شارژ صادر شد و برای {fa.format(Number(sent))} واحد پیامک فرستاده شد.</Alert>
+        </div>
+      )}
+      {Number(failed) > 0 && (
+        <div className="mb-3">
+          <Alert tone="danger">
+            پیامک {fa.format(Number(failed))} واحد ارسال نشد. شارژ ثبت شده است؛ لینک هر واحد را از صفحهٔ واحدها کپی کنید و
+            بفرستید.
+          </Alert>
         </div>
       )}
       {periods.length === 0 ? (

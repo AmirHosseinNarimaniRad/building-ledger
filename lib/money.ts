@@ -39,6 +39,11 @@ export function rialToTomanLabel(rial: bigint): string {
   return `${formatter.format(toToman(rial))} تومان`;
 }
 
+/** 12500000n rial → '۱٬۲۵۰٬۰۰۰': the toman figure alone, for SMS templates that hold the unit. */
+export function rialToTomanDigits(rial: bigint): string {
+  return formatter.format(toToman(rial));
+}
+
 /** Like rialToTomanLabel, but always shows the sign: '+۵۰۰٬۰۰۰ تومان', '−۱٬۲۰۰٬۰۰۰ تومان'. */
 export function rialToSignedTomanLabel(rial: bigint): string {
   return `${signedFormatter.format(toToman(rial))} تومان`;

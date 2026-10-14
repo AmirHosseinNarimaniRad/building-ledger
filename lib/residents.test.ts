@@ -6,7 +6,7 @@ import { sendChargeNotices } from "./notify";
 import { issueCharge } from "./charge";
 import { createEntry } from "./ledger";
 import { fromJalali } from "./date";
-import type { SmsSender } from "./sms";
+import { renderSms, type SmsSender } from "./sms";
 
 const sql = appDb();
 afterAll(async () => {
@@ -18,7 +18,7 @@ const toman = (n: number) => BigInt(n) * 10n;
 
 function fakeSms() {
   const sent: { to: string; text: string }[] = [];
-  const sms: SmsSender = { send: async (to, text) => (sent.push({ to, text }), { ok: true }) };
+  const sms: SmsSender = { send: async (to, m) => (sent.push({ to, text: renderSms(m) }), { ok: true }) };
   return { sms, sent };
 }
 
@@ -73,13 +73,26 @@ describe("charge SMS", () => {
       issueCharge(sql, { buildingId: b.buildingId, jy: 1405, jm, totalRial: toman(12_345_000), formula: { mode: "equal" }, by: b.userId });
 
     const { sms, sent } = fakeSms();
-    expect(await sendChargeNotices(sql, sms, (await issue(6)).periodId)).toBe(2);
-    expect(await sendChargeNotices(sql, sms, (await issue(7)).periodId)).toBe(2);
+    expect(await sendChargeNotices(sql, sms, (await issue(6)).periodId)).toEqual({ sent: 2, failed: 0 });
+    expect(await sendChargeNotices(sql, sms, (await issue(7)).periodId)).toEqual({ sent: 2, failed: 0 });
 
-    expect(sent[0].text).toMatch(/^شارژ شهریور: ۴٬۱۱۵٬۰۰۰ تومان — جزئیات: https:\/\/daftar-shafaf\.ir\/r\/[A-Za-z0-9_-]{22}$/);
+    expect(sent[0].text).toMatch(/^شارژ شهریور ساختمان شما: ۴٬۱۱۵٬۰۰۰ تومان\nجزئیات: https:\/\/daftar-shafaf\.ir\/r\/[A-Za-z0-9_-]{22}$/);
     expect(sent[2].text.split(" ").at(-1)).toBe(sent[0].text.split(" ").at(-1)); // same link next month
     for (const s of sent) expect(s.text.length).toBeLessThanOrEqual(134);
     expect(sent.find((s) => s.text.includes(residentUrl("x").slice(0, -1)) && s.to === "+989121111111")).toBeTruthy();
+  });
+});
+
+describe("a failing SMS panel", () => {
+  it("stops a batch after 3 failures in a row and reports the rest as not sent", async () => {
+    const b = await makeBuilding(sql, 5);
+    for (const [i, id] of b.unitIds.entries()) await sql`UPDATE units SET phone = ${`+98912000000${i}`} WHERE id = ${id}`;
+    const { periodId } = await issueCharge(sql, { buildingId: b.buildingId, jy: 1405, jm: 8, totalRial: toman(5_000_000), formula: { mode: "equal" }, by: b.userId });
+
+    let calls = 0;
+    const down: SmsSender = { send: async () => (calls++, { ok: false, error: "timeout" }) };
+    expect(await sendChargeNotices(sql, down, periodId)).toEqual({ sent: 0, failed: 5 });
+    expect(calls).toBe(3);
   });
 });
 

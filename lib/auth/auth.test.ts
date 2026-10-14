@@ -2,7 +2,7 @@ import { randomInt } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 import { appDb, ownerDb } from "@/test/support";
 import { normalizeMobile } from "@/lib/phone";
-import type { SmsSender } from "@/lib/sms";
+import { renderSms, type SmsSender } from "@/lib/sms";
 import { createSession, OTP_MAX_ATTEMPTS, requestOtp, revokeSession, sessionUser, verifyOtp } from "./otp";
 
 const sql = appDb();
@@ -14,7 +14,7 @@ afterAll(async () => {
 /** Captures sent messages so tests can read the code. */
 function fakeSms() {
   const sent: { to: string; text: string }[] = [];
-  const sms: SmsSender = { send: async (to, text) => (sent.push({ to, text }), { ok: true }) };
+  const sms: SmsSender = { send: async (to, m) => (sent.push({ to, text: renderSms(m) }), { ok: true }) };
   const lastCode = () => /(\d{6})/.exec(sent.at(-1)!.text)![1];
   return { sms, sent, lastCode };
 }
@@ -49,6 +49,18 @@ describe("OTP login", () => {
     expect(userId).toMatch(/^[0-9a-f-]{36}$/);
     // Single use.
     await expect(verifyOtp(sql, { phone, code })).rejects.toMatchObject({ code: "expired" });
+  });
+
+  it("voids the code when the SMS fails, and lets them retry at once", async () => {
+    const phone = newPhone();
+    let code = "";
+    const failing: SmsSender = { send: async (_to, m) => ((code = m.kind === "otp" ? m.code : ""), { ok: false, error: "418" }) };
+    await expect(requestOtp(sql, { phone, ip: newIp(), sms: failing })).rejects.toMatchObject({ code: "sms_failed" });
+    await expect(verifyOtp(sql, { phone, code })).rejects.toMatchObject({ code: "expired" });
+
+    const { sms, lastCode } = fakeSms();
+    await requestOtp(sql, { phone, ip: newIp(), sms }); // no 60-second wait
+    expect(await verifyOtp(sql, { phone, code: lastCode() })).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it("refuses a second code within 60 seconds", async () => {

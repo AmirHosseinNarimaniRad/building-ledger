@@ -4,8 +4,8 @@ The working log for this project: where it stands, what is next, and the decisio
 Read this first when picking the work up; update it at the end of every step.
 
 **Last updated:** 2026-10-14
-**Current step:** 7, housekeeping before the pilot
-**Next step:** 8, a real SMS panel (blocked on the owner: provider, account, approved templates)
+**Current step:** waiting on the owner: SMS account + template approval, domain, server
+**Next step:** deploy, connect the approved SMS templates, then 9 (pilot)
 
 ## Steps
 
@@ -19,10 +19,27 @@ Read this first when picking the work up; update it at the end of every step.
 | 5 | Charges, resident links, the resident page | Done |
 | 6 | Arrears, SMS reminders, monthly report, PWA | Done |
 | — | Production deployment: Docker image, Compose, nginx, backups | Done |
-| 7 | Housekeeping: English README, this file, security audit, status doc | In progress |
-| 8 | Real SMS panel (Kavenegar or SMS.ir adapter, template texts) | Waiting on owner |
+| 7 | Housekeeping: English README, this file, security audit, status doc | Done |
+| 8 | SMS: Kavenegar + SMS.ir adapters, template texts, failure handling, test-send script | Code done; templates waiting on owner |
 | 9 | Pilot with one real building (10–30 units) | Waiting on owner |
 | 10 | Real receipt reader (VLM) for bank-receipt photos | Later, after the pilot |
+
+## Step 8: what is done and what is left
+
+Done (2026-10-14):
+- Every SMS is a panel template (Kavenegar lookup / SMS.ir verify); `SMS_SENDER` picks the panel.
+- Template texts to submit: `deploy/SMS.md`. `renderSms` in `lib/sms/shared.ts` must match them.
+- Failures: login voids the code and says so; charge/reminder batches count unsent SMS on screen
+  and stop after 3 failures in a row. Logs never contain numbers, texts or keys.
+- Bad SMS settings make the server refuse every request (health check fails) via `instrumentation.ts`.
+- `npm run sms:test -- <mobile>` / `node sms-test.cjs <mobile>` in the image sends one of each.
+- Kavenegar's live API was probed with a fake key: response shape matches. SMS.ir's API is not
+  reachable from outside Iran; its format comes from its official SDK and is unverified live.
+
+Left (needs the owner):
+- [ ] Choose a panel, open the account, submit the three templates
+- [ ] After approval: set the `.env` values, run the test send, check the texts on a real phone
+- [ ] If SMS.ir: confirm the success status (assumed `status: 1`) on the first real send
 
 ## Step 7 checklist
 
@@ -33,7 +50,7 @@ Read this first when picking the work up; update it at the end of every step.
 
 ## Verified state
 
-- 63 unit tests pass (`npm test`).
+- 75 unit tests pass (`npm test`).
 - The 40-check browser test (`npm run e2e`) passes against dev, and against the production stack
   through nginx and HTTPS.
 - The 11 PWA checks pass (`npm run e2e:pwa`).
@@ -84,5 +101,6 @@ Read this first when picking the work up; update it at the end of every step.
 
 | Date | Step | Note |
 | --- | --- | --- |
+| 2026-10-14 | 8 | SMS adapters (Kavenegar, SMS.ir), template texts, failure handling, test-send script |
 | 2026-10-14 | 7 | README rewritten in English; this file added; security audit; Persian comments translated |
 | 2026-10-14 | 1–2 of "after step 6" | Spec doc synced with the code; production deployment added and verified |

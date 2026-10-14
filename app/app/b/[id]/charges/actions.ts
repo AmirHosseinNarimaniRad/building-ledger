@@ -89,6 +89,6 @@ export async function issueChargeAction(buildingId: string, _prev: IssueState, f
     throw err;
   }
 
-  const sent = await sendChargeNotices(db(), getSmsSender(), periodId);
-  redirect(`/app/b/${buildingId}/charges?sent=${sent}`);
+  const { sent, failed } = await sendChargeNotices(db(), getSmsSender(), periodId);
+  redirect(`/app/b/${buildingId}/charges?sent=${sent}&failed=${failed}`);
 }

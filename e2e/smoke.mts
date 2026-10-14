@@ -192,7 +192,8 @@ try {
 
   // 11. The SMS carries the resident link.
   const smsE164 = `+98${residentPhone.slice(1)}`;
-  const sms = await waitFor(() => new RegExp(`\\[sms → \\${smsE164}\\] (شارژ [^\\n]*)`).exec(log)?.[1], "charge SMS");
+  // Two lines: the amount, then the link.
+  const sms = await waitFor(() => new RegExp(`\\[sms → \\${smsE164}\\] (شارژ [^\\n]*\\n[^\\n]*/r/[A-Za-z0-9_-]{22})`).exec(log)?.[1], "charge SMS");
   const link = /(http\S+\/r\/[A-Za-z0-9_-]{22})$/.exec(sms)?.[1];
   check(!!link && sms.length <= 134, `charge SMS has the link and fits 2 parts (${sms.length} chars)`);
   const residentPath = new URL(link!).pathname;
@@ -245,8 +246,8 @@ try {
   const remindStart = log.length;
   await owe.getByRole("button", { name: "یادآور پیامکی" }).click();
   await page.waitForURL(/\/arrears\?sent=1/);
-  const reminder = await waitFor(() => new RegExp(`\\[sms → \\${smsE164}\\] (بدهی شما[^\\n]*)`).exec(log.slice(remindStart))?.[1], "reminder SMS");
-  check(reminder.startsWith("بدهی شما: ۴۰۰٬۰۰۰ تومان — ") && reminder.endsWith(residentPath), "reminder SMS has the debt and the same link");
+  const reminder = await waitFor(() => new RegExp(`\\[sms → \\${smsE164}\\] (یادآوری بدهی[^\\n]*\\n[^\\n]*/r/[A-Za-z0-9_-]{22})`).exec(log.slice(remindStart))?.[1], "reminder SMS");
+  check(reminder.startsWith("یادآوری بدهی شارژ ساختمان: ۴۰۰٬۰۰۰ تومان\n") && reminder.endsWith(residentPath), "reminder SMS has the debt and the same link");
   check(await page.locator("div.rounded-2xl", { hasText: "واحد ۱۰۱" }).getByText(/یادآور فرستاده شد/).isVisible(), "a second reminder is held back for 24 hours");
   await shot(page, "09-arrears");
 

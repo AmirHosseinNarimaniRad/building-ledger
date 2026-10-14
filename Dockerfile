@@ -15,7 +15,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build \
- && npx esbuild scripts/migrate.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/migrate.cjs
+ && npx esbuild scripts/migrate.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/migrate.cjs \
+ && npx esbuild scripts/sms-test.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/sms-test.cjs
 
 FROM ${NODE_IMAGE} AS run
 WORKDIR /app
@@ -27,7 +28,7 @@ RUN apk add --no-cache tzdata \
 COPY --from=build --chown=app:app /app/.next/standalone ./
 COPY --from=build --chown=app:app /app/.next/static ./.next/static
 COPY --from=build --chown=app:app /app/public ./public
-COPY --from=build --chown=app:app /app/dist/migrate.cjs ./migrate.cjs
+COPY --from=build --chown=app:app /app/dist/migrate.cjs /app/dist/sms-test.cjs ./
 COPY --from=build --chown=app:app /app/db/migrations ./db/migrations
 USER app
 EXPOSE 3000

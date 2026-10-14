@@ -5,7 +5,7 @@ import { createEntry, editEntry, lockEntries, voidEntry } from "./ledger";
 import { issueCharge } from "./charge";
 import { monthlyReport } from "./report";
 import { listArrears, sendReminders } from "./arrears";
-import type { SmsSender } from "./sms";
+import { renderSms, type SmsSender } from "./sms";
 
 const sql = appDb();
 afterAll(async () => {
@@ -63,12 +63,12 @@ describe("arrears reminders", () => {
     expect(rows.map((r) => r.unitId).sort()).toEqual([b.unitIds[0], b.unitIds[2]].sort()); // unit 2 paid in full
 
     const sent: string[] = [];
-    const sms: SmsSender = { send: async (_to, text) => (sent.push(text), { ok: true }) };
-    expect(await sendReminders(sql, sms, { buildingId: b.buildingId, unitIds: null, by: b.userId })).toEqual({ sent: 1, skipped: 1 });
-    expect(sent[0]).toMatch(/^بدهی شما: ۱٬۰۰۰٬۰۰۰ تومان — http\S+\/r\/[A-Za-z0-9_-]{22}$/);
+    const sms: SmsSender = { send: async (_to, m) => (sent.push(renderSms(m)), { ok: true }) };
+    expect(await sendReminders(sql, sms, { buildingId: b.buildingId, unitIds: null, by: b.userId })).toEqual({ sent: 1, skipped: 1, failed: 0 });
+    expect(sent[0]).toMatch(/^یادآوری بدهی شارژ ساختمان: ۱٬۰۰۰٬۰۰۰ تومان\nجزئیات: http\S+\/r\/[A-Za-z0-9_-]{22}$/);
 
     // Again right away: nothing goes out.
-    expect(await sendReminders(sql, sms, { buildingId: b.buildingId, unitIds: null, by: b.userId })).toEqual({ sent: 0, skipped: 2 });
+    expect(await sendReminders(sql, sms, { buildingId: b.buildingId, unitIds: null, by: b.userId })).toEqual({ sent: 0, skipped: 2, failed: 0 });
     await ownerDb()`UPDATE arrears_reminders SET sent_at = sent_at - interval '25 hours' WHERE unit_id = ${b.unitIds[0]}`;
     expect((await sendReminders(sql, sms, { buildingId: b.buildingId, unitIds: [b.unitIds[0]], by: b.userId })).sent).toBe(1);
   });
