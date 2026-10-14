@@ -6,7 +6,7 @@ import { todayTehran } from "@/lib/date";
 export type ExtractedReceipt = {
   amountRial?: bigint;
   occurredOn?: string; // ISO date, 'YYYY-MM-DD'
-  traceNumber?: string; // شماره پیگیری
+  traceNumber?: string; // the bank's trace number
   payee?: string;
   confidence: number; // 0..1
   raw: unknown; // provider response, stored in documents.extracted

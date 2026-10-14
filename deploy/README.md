@@ -1,4 +1,4 @@
-# Deploying دفتر شفاف ساختمان
+# Deploying Building Ledger
 
 One server, Docker Compose: Postgres, a one-off migration job, the app, nginx (HTTPS) and a daily
 backup job. Tested end to end: the full browser suite (`npm run e2e`) passes against this stack,

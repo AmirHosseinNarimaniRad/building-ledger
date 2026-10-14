@@ -149,7 +149,7 @@ try {
   await page.waitForURL(/\/ledger$/);
   check(await page.getByText("پرداخت واحد ۱۰۱").isVisible(), "payment appears in the ledger");
 
-  // 7. Editing a draft changes it in place: no «ویرایش شده».
+  // 7. Editing a draft changes it in place: no "edited" badge.
   await page.locator("article", { hasText: "پرداخت واحد ۱۰۱" }).getByRole("link", { name: "ویرایش" }).click();
   check(!(await page.getByLabel("دلیل تغییر").isVisible()), "draft edit asks for no reason");
   await page.getByLabel("مبلغ (تومان)").fill("600000");
@@ -157,7 +157,7 @@ try {
   await page.waitForURL(/\/ledger$/);
   const pay = page.locator("article", { hasText: "پرداخت واحد ۱۰۱" });
   check((await pay.textContent())?.includes("۶۰۰٬۰۰۰") ?? false, "draft edit saved the new amount");
-  check((await pay.getByText("ویرایش شده").count()) === 0, "draft edit leaves no «ویرایش شده»");
+  check((await pay.getByText("ویرایش شده").count()) === 0, "draft edit leaves no edited badge");
   await shot(page, "06-ledger");
 
   // 8. Document images: the manager gets them; nobody else does.
@@ -168,7 +168,7 @@ try {
   check(stranger.status() === 404, "no session → 404 for the document");
 
   // ---------------- step 5: charge, SMS link, resident page ----------------
-  // 9. Give unit ۱۰۱ a phone so it gets the SMS.
+  // 9. Give unit 101 a phone so it gets the SMS.
   const residentPhone = `0912${String(randomInt(10_000_000)).padStart(7, "0")}`;
   await page.goto(`${buildingUrl}/units`);
   await page.locator("tr", { hasText: "۱۰۱" }).first().getByRole("link", { name: "ویرایش" }).click();
@@ -238,7 +238,7 @@ try {
   check(unknownText?.includes("این لینک معتبر نیست") === true && (await resident.locator("main").textContent()) === unknownText, "invalid links all get the same page");
 
   // ---------------- step 6: arrears, reminders, report ----------------
-  // 18. Unit ۱۰۱ was charged 1,000,000 and paid 600,000: it owes 400,000.
+  // 18. Unit 101 was charged 1,000,000 and paid 600,000: it owes 400,000.
   await page.goto(`${buildingUrl}/arrears`);
   const owe = page.locator("div.rounded-2xl", { hasText: "واحد ۱۰۱" });
   check((await owe.textContent())?.includes("۴۰۰٬۰۰۰ تومان") ?? false, "arrears lists ۱۰۱ owing ۴۰۰٬۰۰۰");

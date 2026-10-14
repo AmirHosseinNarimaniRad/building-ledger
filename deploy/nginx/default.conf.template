@@ -1,3 +1,5 @@
+server_tokens off;
+
 # ${DOMAIN} is filled in by the nginx image at start-up; nginx's own $variables are left alone.
 
 server {
